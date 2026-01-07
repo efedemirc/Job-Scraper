@@ -1,6 +1,16 @@
 # Indeed Job Scraper
 
-This Python script scrapes job postings from Indeed.com based on user-provided keywords and locations. The scraped data, including job titles, company names, and locations, is saved to a CSV file named `jobs_finder.csv`.
+This Python script scrapes job postings from Indeed.com using a modular architecture that enhances maintainability and scalability. It leverages Selenium for robust browser automation and BeautifulSoup for efficient HTML parsing. The scraped data, including job titles, company names, and locations, is saved to a CSV file named `jobs_finder.csv`.
+
+The script is designed with improved error handling and dynamic pagination, allowing it to navigate through job listings until no more pages are available. It also runs in headless mode by default to ensure a smooth, automated execution experience.
+
+## Features
+
+-   **Modular Design:** The script is organized into separate functions for scraping, saving data, and orchestrating the main process, making the codebase easier to manage and extend.
+-   **Dynamic Pagination:** Instead of a fixed number of pages, the scraper dynamically detects and navigates to the next page, ensuring all available job postings are captured.
+-   **Robust Error Handling:** The script includes `try-except` blocks to gracefully handle common issues like page load timeouts and missing elements, preventing unexpected crashes.
+-   **Headless Operation:** By default, the script runs Chrome in headless mode, allowing it to execute in environments without a graphical user interface.
+-   **CSV Header Management:** The script checks if the output CSV file already exists to avoid writing duplicate headers on subsequent runs.
 
 ## Setup
 
@@ -21,9 +31,3 @@ This Python script scrapes job postings from Indeed.com based on user-provided k
     ```
 4.  The script will prompt you to enter a job title/keyword and a location.
 5.  After the script finishes, you will find the scraped data in `jobs_finder.csv`.
-
-## Limitations
-
--   **Pagination:** The current pagination logic is basic and might not scrape all available pages. It iterates through a fixed range of pages.
--   **Error Handling:** The script has minimal error handling. If a page doesn't load or an element is not found, the script might fail.
--   **Dynamic Content:** The script might not work correctly if Indeed.com changes its website structure or uses more dynamic content loading that this script doesn't handle.
