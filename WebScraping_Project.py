@@ -5,45 +5,96 @@ Created on Mon Mar  4 20:03:24 2024
 @author: Asus
 """
 
-from bs4 import BeautifulSoup  # For parsing HTML and XML documents
-import csv  # For reading from and writing to CSV files
-from selenium import webdriver  # To automate web browser interaction
-from selenium.webdriver.common.by import By  # For locating elements within a webpage
-from selenium.webdriver.support.ui import WebDriverWait  # To wait for certain conditions in the browser
-from selenium.webdriver.support import expected_conditions as EC  # To specify what you are waiting for in a browser
-import re  # For regular expression operations
-import os  # For interacting with the operating system
+from bs4 import BeautifulSoup
+import csv
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
+import re
+import os
 
-querry=input("Enter company name, keyword or job title:")  # Asks the user for a job title or keyword
-location=input("Enter desired location:")  # Asks the user for a location
-base_url = "https://de.indeed.com/jobs?q={query}&l={location1}".format(query=querry, location1=location) # This line formats the base URL with the user-provided query and location.
+def scrape_page(url, driver):
+    """
+    Scrapes a single page of job postings.
+    """
+    driver.get(url)
+    try:
+        WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'div.job_seen_beacon'))
+        )
+    except TimeoutException:
+        print("Timeout while waiting for page to load.")
+        return []
 
-driver = webdriver.Chrome()  # Initializes the Chrome WebDriver
-driver.get(base_url)  # Navigates to the specified URL in the web browser
+    soup = BeautifulSoup(driver.page_source, 'html.parser')
+    jobs = []
+    job_elements = soup.find_all('div', class_='job_seen_beacon')
 
-drivers = driver.page_source  # Retrieves the HTML source of the page
+    for job_elem in job_elements:
+        title_elem = job_elem.find('span', id=re.compile(r'^jobTitle-'))
+        company_elem = job_elem.find('span', {'data-testid': 'company-name'})
+        location_elem = job_elem.find('div', {'data-testid': 'text-location'})
 
-soup = BeautifulSoup(drivers, 'html.parser')  # Parses the HTML content using BeautifulSoup
+        if title_elem and company_elem and location_elem:
+            jobs.append([title_elem.text.strip(), company_elem.text.strip(), location_elem.text.strip()])
 
-job_postings = soup.find_all('span', id=re.compile("jobTitle"))  # Finds all job postings
-job_names = soup.find_all('span', attrs={'data-testid':"company-name"})  # Finds all company names
-job_locations = soup.find_all('div', attrs={'data-testid': "text-location"})  # Finds all job locations
+    return jobs
 
-jobs = []  # Initializes a list to store job data
-for job_posting, job_name, job_location in zip(job_postings, job_names, job_locations):
-    jobs.append([job_posting.text, job_name.text, job_location.text])  # Appends job data to the list
+def save_to_csv(jobs, file_path):
+    """
+    Saves a list of jobs to a CSV file.
+    """
+    file_exists = os.path.isfile(file_path)
+    with open(file_path, mode='a', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        if not file_exists:
+            writer.writerow(['Job Title', 'Company Name', 'Location'])
+        writer.writerows(jobs)
 
-driver.quit()  # Closes the web browser
+def main():
+    """
+    Main function to orchestrate the scraping process.
+    """
+    query = input("Enter company name, keyword or job title: ")
+    location = input("Enter desired location: ")
+    base_url = f"https://de.indeed.com/jobs?q={query}&l={location}"
 
-file_path = 'jobs_finder.csv'  # Sets the file path
-file_exists = os.path.isfile(file_path)  # Checks if the file already exists
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
+    driver = webdriver.Chrome(options=options)
+    all_jobs = []
 
-with open(file_path, mode='a', newline='', encoding='utf-8') as file:  # Opens the CSV file
-    writer = csv.writer(file)
-    writer.writerow(['Job Title', 'Company Name', 'Location'])  # Writes the header
-    for start in range(20, 100, 10):  # Iterates through page numbers
-        url = f'{base_url}&start={start}'  # Updates the URL with the new page number
-        for job in jobs:  # Iterates through the jobs list
-            writer.writerow(job)  # Writes each job to the CSV file
+    page = 0
+    while True:
+        url = f"{base_url}&start={page * 10}"
+        print(f"Scraping page {page + 1}...")
 
-print(f'Job data have been saved to {file_path}')  # Prints a confirmation message
+        jobs = scrape_page(url, driver)
+        if not jobs:
+            print("No more jobs found, stopping.")
+            break
+
+        all_jobs.extend(jobs)
+
+        # Check for the next page button
+        try:
+            driver.find_element(By.CSS_SELECTOR, 'a[data-testid="pagination-page-next"]')
+            page += 1
+        except NoSuchElementException:
+            print("Reached the last page.")
+            break
+
+    driver.quit()
+
+    file_path = 'jobs_finder.csv'
+    save_to_csv(all_jobs, file_path)
+
+    print(f'Job data have been saved to {file_path}')
+
+if __name__ == "__main__":
+    main()
