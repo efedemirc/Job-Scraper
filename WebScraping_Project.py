@@ -5,7 +5,6 @@ Created on Mon Mar  4 20:03:24 2024
 @author: Asus
 """
 
-import requests  # Unused in this script, typically used for HTTP requests
 from bs4 import BeautifulSoup  # For parsing HTML and XML documents
 import csv  # For reading from and writing to CSV files
 from selenium import webdriver  # To automate web browser interaction
@@ -36,7 +35,7 @@ for job_posting, job_name, job_location in zip(job_postings, job_names, job_loca
 
 driver.quit()  # Closes the web browser
 
-file_path = 'C:\\Users\Asus\Desktop\jobs_finder.csv'  # Sets the file path
+file_path = 'jobs_finder.csv'  # Sets the file path
 file_exists = os.path.isfile(file_path)  # Checks if the file already exists
 
 with open(file_path, mode='a', newline='', encoding='utf-8') as file:  # Opens the CSV file
